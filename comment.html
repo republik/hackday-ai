@@ -58,14 +58,56 @@
                     body: JSON.stringify({
                         system_instruction: {
                             parts: [{
-                                text: "Deine Aufgabe ist als Assistent für Community-Member des Online Magazins Republik zu dienen, um ihnen z.B. aufzuzeigen, ob der Kommentar, den sie im Dialog verfasst haben gegen die Etikette verstösst: https://www.republik.ch/etikette . Ausserdem kannst du Tonfall, Konstruktivität des Kommentars, und allgemeine Verbesserungsvorschläge für den Kommentar geben. Gibt jeweils ein strukturiertes Dokument als Antwort, welches folgende Felder enthält: etiketteCompatibilityScore (Wert von 0 bis 1), etiketteCompatibilityExplanation (Kurze Zusammenfassung), etiketteCompatibilityHighlight (Textstelle, die am ehesten gegen die Etikette verstösst), commentTone (Liste von 5 Begriffen, die den Tonfall beschreiben), constructiveScore (Wert von 0 bis 1), constructiveScore (Kurze Zusammenfassung), generalFeedback (Kurze Zusammenfassung)."
+                                text: "Deine Aufgabe ist als Assistent für Community-Member des Online Magazins Republik zu dienen, um ihnen z.B. aufzuzeigen, ob der Kommentar, den sie im Dialog verfasst haben gegen die Republik Etikette verstösst. Ausserdem kannst du Tonfall, Konstruktivität des Kommentars, und allgemeine Verbesserungsvorschläge für den Kommentar geben."
+                            }, {
+                                text: "Die Republik Etikette: Herzlich willkommen im Dialog! Hier fragen wir nach, wundern wir uns, beglückwünschen oder widersprechen wir uns: Wir kommen miteinander ins Gespräch. Als Gastgeberinnen setzen wir uns für ein angenehmes und offenes Gesprächs­klima ein. Aber am Ende ist jede Diskussion nur so gut wie ihre einzelnen Teilnehmerinnen. Wir bitten Sie deshalb, folgende vier Grundsätze zu beachten: Das bleibt draussen: Nichts verloren haben im Wohn­zimmer der Republik Sexismus, Rassismus und das Kokettieren damit. Ebenso wenig sämtliche Beiträge, die gegen das Gesetz verstossen, oder Kommentare, die für jemanden oder für etwas Werbung machen – schliesslich sind wir ein werbefreies Magazin. Bitte respektieren Sie die Privat­sphäre aller Nutzer. Posten Sie keine Adressen, Telefon­nummern oder ähnliche private Informationen. Spielen Sie mit offenen Karten: Uns ist es wichtig, dass alle Teilnehmerinnen der Diskussion nachvollziehen können, worum es in Ihrem Kommentar geht und aus welcher Position Sie sprechen. Wenn Sie zum Beispiel externe Links posten, dann erklären Sie, worum es sich dabei handelt. Nennen Sie Ihre Quellen und prüfen Sie sie vorab. Ähnliches gilt für Sie selbst: Verwenden Sie Ihren eigenen und keinen erfundenen oder falschen Namen. Definieren Sie Ihre «Rolle» und zeigen Sie damit, aus welcher Perspektive Sie in der jeweiligen Debatte schreiben: als Grossvater, als Lehrperson, als Rechts­expertin? Diese Rolle ist umso wichtiger, wenn Sie aus Gründen der Privatsphäre (berufliche Stellung, besonders persönliche Schilderungen o. Ä.) oder im Falle von vertraulichen Informationen lieber anonym kommentieren. Der Ton macht die Musik: Vergessen Sie nie, dass auf der anderen Seite Menschen sitzen. Bleiben Sie beim Inhalt des Artikels oder bei der Leitfrage der Debatte und beleidigen Sie niemanden. Auch nicht, wenn das Gegenüber diese Regel schon gebrochen hat. Im Zweifels­fall: Schreiben Sie nichts, was Sie Ihrem Gegenüber nicht auch ins Gesicht sagen würden. Und falls Sie sich einmal in Rage gebracht sehen sollten: durchatmen! Nehmen Sie sich Zeit zum Antworten. Sie müssen nicht sofort reagieren. Eine bestehende Wortmeldung können Sie auch einfach mit einem Klick positiv oder negativ bewerten. Miteinander statt neben­einander: Der Dialog der Republik soll für alle Verlegerinnen zugänglich sein. Es geht nicht darum, möglichst laut und dominant aufzutreten, sondern darum, einen inhaltlichen Austausch voran­zubringen. Wir wünschen uns eine Vielfalt an Stimmen und Perspektiven. Denken Sie deshalb daran, auch anderen Personen Raum zu geben, und akzeptieren Sie es, wenn nicht alle Anwesenden Ihre Meinung teilen. Beiträge, die gegen diese Grundsätze verstossen, können gelöscht werden. Fällt ein Profil mehrfach negativ auf, behalten wir uns das Recht vor, Nutzer von der Teilnahme am Dialog auszuschliessen."
                             }]
                         },
                         contents: [{
                             parts: [{
                                 text: `Analysiere den folgenden Beitrag: ${comment}`
                             }]
-                        }]
+                        }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    etiketteCompatibilityScore: {
+                                        type: "NUMBER",
+                                        description: "Wert von 0 bis 1"
+                                    },
+                                    etiketteCompatibilityExplanation: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    },
+                                    etiketteCompatibilityHighlight: {
+                                        type: "STRING",
+                                        description: "Textstelle, die am ehesten gegen die Etikette verstösst"
+                                    },
+                                    commentTone: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "STRING"
+                                        },
+                                        description: "Liste von 5 Begriffen, die den Tonfall beschreiben"
+                                    },
+                                    constructiveScore: {
+                                        type: "NUMBER",
+                                        description: "Wert von 0 bis 1"
+                                    },
+                                    constructiveExplanation: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    },
+                                    generalFeedback: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    }
+                                },
+                                required: ["etiketteCompatibilityScore", "etiketteCompatibilityExplanation", "etiketteCompatibilityHighlight", "commentTone", "constructiveScore", "constructiveExplanation", "generalFeedback"]
+                            }
+                        }
                     })
                 });
 
@@ -78,7 +120,8 @@
                 if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
                     const aiResponse = data.candidates[0].content.parts[0].text;
                     console.log(aiResponse);
-                    parseSentimentResponse(aiResponse);
+                    const jsonResponse = JSON.parse(aiResponse);
+                    displayStructuredResult(jsonResponse);
                 } else {
                     throw new Error('Invalid response format from AI');
                 }
@@ -92,36 +135,36 @@
             }
         });
 
-        function parseSentimentResponse(response) {
-            const sentimentMatch = response.match(/SENTIMENT:\s*(positive|negative|neutral)/i);
-            const explanationMatch = response.match(/EXPLANATION:\s*(.+)/i);
-
-            let sentiment = 'neutral';
-            let explanation = 'Unable to determine sentiment explanation.';
-
-            if (sentimentMatch) {
-                sentiment = sentimentMatch[1].toLowerCase();
-            }
-
-            if (explanationMatch) {
-                explanation = explanationMatch[1].trim();
-            }
-
-            displayResult(sentiment, explanation);
-        }
-
-        function displayResult(sentiment, explanation) {
+        function displayStructuredResult(data) {
             const result = document.getElementById('result');
             const title = document.getElementById('sentimentTitle');
             const description = document.getElementById('sentimentDescription');
 
-            // Remove existing sentiment classes
-            result.classList.remove('positive', 'negative', 'neutral');
+            // Create structured display
+            const etiketteScore = Math.round(data.etiketteCompatibilityScore * 100);
+            const constructiveScore = Math.round(data.constructiveScore * 100);
+            
+            // Determine overall compatibility class
+            let compatibilityClass = 'neutral';
+            if (data.etiketteCompatibilityScore >= 0.7) {
+                compatibilityClass = 'positive';
+            } else if (data.etiketteCompatibilityScore < 0.4) {
+                compatibilityClass = 'negative';
+            }
 
-            // Add appropriate class and content
-            result.classList.add(sentiment);
-            title.textContent = `Sentiment: ${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}`;
-            description.textContent = explanation;
+            // Remove existing classes
+            result.classList.remove('positive', 'negative', 'neutral');
+            result.classList.add(compatibilityClass);
+
+            title.textContent = `Etikette-Kompatibilität: ${etiketteScore}%`;
+            
+            description.innerHTML = `
+                <div><strong>Etikette-Bewertung:</strong> ${data.etiketteCompatibilityExplanation}</div>
+                <div><strong>Problematische Stelle:</strong> "${data.etiketteCompatibilityHighlight}"</div>
+                <div><strong>Tonfall:</strong> ${data.commentTone.join(', ')}</div>
+                <div><strong>Konstruktivität:</strong> ${constructiveScore}% - ${data.constructiveExplanation}</div>
+                <div><strong>Allgemeines Feedback:</strong> ${data.generalFeedback}</div>
+            `;
 
             result.style.display = 'block';
         }
