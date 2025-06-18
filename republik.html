@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comment Analyzer</title>
+    <link rel="stylesheet" href="comment.css">
+</head>
+
+<body>
+    <div class="container">
+        <form id="sentimentForm">
+            <div class="form-group">
+                <label for="articleUrl">Enter Republik article URL with focus parameter:</label>
+                <input type="url" id="articleUrl" placeholder="https://www.republik.ch/dialog/...?focus=comment-id" required>
+                <small>Example: https://www.republik.ch/dialog/2025/06/18/aufstieg-wirkung-und-fall-von-wef-gruender-klaus-schwab?focus=d29a7429-c0a0-428c-ab39-468785d293e3</small>
+            </div>
+
+            <button type="submit" id="analyzeBtn">Analyze Comment</button>
+        </form>
+
+        <div class="loading" id="loading">Extracting and analyzing comment...</div>
+        <div class="error" id="error"></div>
+        <div class="result" id="result">
+            <h3 id="sentimentTitle"></h3>
+            <p id="sentimentDescription"></p>
+            <button type="button" id="tryOtherBtn" class="try-other-btn">Try Other Comment</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('sentimentForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const apiKey = "AIzaSyDhLmUs9suQRRYTvoUGEB0IpEBFHt6xGqg";
+            const articleUrl = document.getElementById('articleUrl').value.trim();
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const form = document.getElementById('sentimentForm');
+
+            if (!apiKey || !articleUrl) {
+                showError('Please enter a valid Republik article URL.');
+                return;
+            }
+
+            // Extract focus parameter from URL
+            const focusId = extractFocusFromUrl(articleUrl);
+            if (!focusId) {
+                showError('Please enter a URL with a focus parameter (comment ID).');
+                return;
+            }
+
+            // Hide form and show loading
+            form.style.display = 'none';
+            result.style.display = 'none';
+            error.style.display = 'none';
+            loading.style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            try {
+                // Fetch the article page
+                const commentData = await extractCommentFromUrl(articleUrl, focusId);
+                
+                if (!commentData.targetComment) {
+                    throw new Error('Could not find the specified comment on the page.');
+                }
+
+                // Prepare the analysis request
+                let analysisText = commentData.targetComment;
+                if (commentData.parentComment) {
+                    analysisText = `Ursprünglicher Kommentar: ${commentData.parentComment}\n\nZu analysierende Antwort: ${commentData.targetComment}`;
+                }
+                
+                // Add article context if available
+                if (commentData.articleContext) {
+                    analysisText = `Artikelkontext: ${commentData.articleContext}\n\n${analysisText}`;
+                }
+
+                console.log(analysisText);
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        system_instruction: {
+                            parts: [{
+                                text: "Deine Aufgabe ist als Assistent für Community-Member des Online Magazins Republik zu dienen, um ihnen z.B. aufzuzeigen, ob der Kommentar, den sie im Dialog verfasst haben gegen die Republik Etikette verstösst. Ausserdem kannst du Tonfall, Konstruktivität des Kommentars, und allgemeine Verbesserungsvorschläge für den Kommentar geben."
+                            }, {
+                                text: "Die Republik Etikette: Herzlich willkommen im Dialog! Hier fragen wir nach, wundern wir uns, beglückwünschen oder widersprechen wir uns: Wir kommen miteinander ins Gespräch. Als Gastgeberinnen setzen wir uns für ein angenehmes und offenes Gesprächs­klima ein. Aber am Ende ist jede Diskussion nur so gut wie ihre einzelnen Teilnehmerinnen. Wir bitten Sie deshalb, folgende vier Grundsätze zu beachten: Das bleibt draussen: Nichts verloren haben im Wohn­zimmer der Republik Sexismus, Rassismus und das Kokettieren damit. Ebenso wenig sämtliche Beiträge, die gegen das Gesetz verstossen, oder Kommentare, die für jemanden oder für etwas Werbung machen – schliesslich sind wir ein werbefreies Magazin. Bitte respektieren Sie die Privat­sphäre aller Nutzer. Posten Sie keine Adressen, Telefon­nummern oder ähnliche private Informationen. Spielen Sie mit offenen Karten: Uns ist es wichtig, dass alle Teilnehmerinnen der Diskussion nachvollziehen können, worum es in Ihrem Kommentar geht und aus welcher Position Sie sprechen. Wenn Sie zum Beispiel externe Links posten, dann erklären Sie, worum es sich dabei handelt. Nennen Sie Ihre Quellen und prüfen Sie sie vorab. Ähnliches gilt für Sie selbst: Verwenden Sie Ihren eigenen und keinen erfundenen oder falschen Namen. Definieren Sie Ihre «Rolle» und zeigen Sie damit, aus welcher Perspektive Sie in der jeweiligen Debatte schreiben: als Grossvater, als Lehrperson, als Rechts­expertin? Diese Rolle ist umso wichtiger, wenn Sie aus Gründen der Privatsphäre (berufliche Stellung, besonders persönliche Schilderungen o. Ä.) oder im Falle von vertraulichen Informationen lieber anonym kommentieren. Der Ton macht die Musik: Vergessen Sie nie, dass auf der anderen Seite Menschen sitzen. Bleiben Sie beim Inhalt des Artikels oder bei der Leitfrage der Debatte und beleidigen Sie niemanden. Auch nicht, wenn das Gegenüber diese Regel schon gebrochen hat. Im Zweifels­fall: Schreiben Sie nichts, was Sie Ihrem Gegenüber nicht auch ins Gesicht sagen würden. Und falls Sie sich einmal in Rage gebracht sehen sollten: durchatmen! Nehmen Sie sich Zeit zum Antworten. Sie müssen nicht sofort reagieren. Eine bestehende Wortmeldung können Sie auch einfach mit einem Klick positiv oder negativ bewerten. Miteinander statt neben­einander: Der Dialog der Republik soll für alle Verlegerinnen zugänglich sein. Es geht nicht darum, möglichst laut und dominant aufzutreten, sondern darum, einen inhaltlichen Austausch voran­zubringen. Wir wünschen uns eine Vielfalt an Stimmen und Perspektiven. Denken Sie deshalb daran, auch anderen Personen Raum zu geben, und akzeptieren Sie es, wenn nicht alle Anwesenden Ihre Meinung teilen. Beiträge, die gegen diese Grundsätze verstossen, können gelöscht werden. Fällt ein Profil mehrfach negativ auf, behalten wir uns das Recht vor, Nutzer von der Teilnahme am Dialog auszuschliessen."
+                            }]
+                        },
+                        contents: [{
+                            parts: [{
+                                text: `Analysiere den folgenden Beitrag: ${analysisText}`
+                            }]
+                        }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    etiketteCompatibilityScore: {
+                                        type: "NUMBER",
+                                        description: "Wert von 0 bis 1"
+                                    },
+                                    etiketteCompatibilityExplanation: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    },
+                                    etiketteCompatibilityHighlight: {
+                                        type: "STRING",
+                                        description: "Textstelle, die am ehesten gegen die Etikette verstösst"
+                                    },
+                                    commentTone: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "STRING"
+                                        },
+                                        description: "Liste von 5 Begriffen, die den Tonfall beschreiben"
+                                    },
+                                    constructiveScore: {
+                                        type: "NUMBER",
+                                        description: "Wert von 0 bis 1"
+                                    },
+                                    conspiracyScore: {
+                                        type: "NUMBER",
+                                        description: "Wert von 0 bis 1. Level von Verschwörungstheorie. 0 ist basiert in der Realität, 1 ist komplett verschörerisch."
+                                    },
+                                    constructiveExplanation: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    },
+                                    generalFeedback: {
+                                        type: "STRING",
+                                        description: "Kurze Zusammenfassung"
+                                    }
+                                },
+                                required: ["etiketteCompatibilityScore", "etiketteCompatibilityExplanation", "etiketteCompatibilityHighlight", "commentTone", "constructiveScore", "constructiveExplanation", "generalFeedback"]
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+                    const aiResponse = data.candidates[0].content.parts[0].text;
+                    console.log(aiResponse);
+                    const jsonResponse = JSON.parse(aiResponse);
+                    displayStructuredResult(jsonResponse, commentData);
+                } else {
+                    throw new Error('Invalid response format from AI');
+                }
+
+            } catch (err) {
+                console.error('Error:', err);
+                showError(`Error analyzing comment: ${err.message}`);
+                // Show form again on error
+                form.style.display = 'block';
+                analyzeBtn.disabled = false;
+            } finally {
+                loading.style.display = 'none';
+                // Keep form hidden and button disabled when showing results successfully
+            }
+        });
+
+        function extractFocusFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.searchParams.get('focus');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function extractCommentFromUrl(url, focusId) {
+            try {
+                // Extract path from URL for GraphQL query
+                const urlObj = new URL(url);
+                let path = urlObj.pathname;
+                
+                // Remove '/dialog/' prefix if present - API expects paths without it
+                if (path.startsWith('/dialog/')) {
+                    path = path.replace('/dialog/', '/');
+                }
+                
+                // Make single API call to get both discussion and document data
+                const data = await fetchDiscussion(path);
+                
+                console.log('API Response:', data); // Debug log
+                
+                if (!data.data || !data.data.discussion) {
+                    throw new Error('Discussion not found - please check the article URL');
+                }
+                
+                const discussion = data.data.discussion;
+                
+                if (!discussion.comments || !discussion.comments.nodes) {
+                    throw new Error('No comments found in this discussion');
+                }
+                
+                const comments = discussion.comments.nodes;
+                
+                // Find the target comment (search recursively for nested comments)
+                const targetComment = findCommentById(comments, focusId);
+                if (!targetComment) {
+                    // Count total comments including nested ones for better error message
+                    const totalComments = countAllComments(comments);
+                    throw new Error(`Comment not found with ID: ${focusId}. Found ${totalComments} total comments in discussion (including nested).`);
+                }
+                
+                // Extract text content from structured content
+                const targetCommentText = extractTextFromContent(targetComment.content);
+                if (!targetCommentText) {
+                    throw new Error('Could not extract comment text');
+                }
+                
+                // Find parent comment if this is a reply
+                let parentCommentText = null;
+                if (targetComment.parentIds && targetComment.parentIds.length > 0) {
+                    const parentId = targetComment.parentIds[0];
+                    const parentComment = findCommentById(comments, parentId);
+                    if (parentComment) {
+                        parentCommentText = extractTextFromContent(parentComment.content);
+                    }
+                }
+                
+                // Extract article context from the document data
+                const articleContext = extractArticleContext(discussion.document);
+                
+                return {
+                    targetComment: targetCommentText,
+                    parentComment: parentCommentText,
+                    articleContext: articleContext,
+                    url
+                };
+                
+            } catch (error) {
+                console.error('Error extracting comment:', error);
+                throw new Error(`Failed to extract comment: ${error.message}`);
+            }
+        }
+
+        async function fetchDiscussion(path) {
+            const query = `
+                query getDiscussion {
+                    discussion(path: "${path}") {
+                        comments {
+                            id
+                            nodes {
+                                id
+                                content
+                                parentIds
+                                comments {
+                                    nodes {
+                                        id
+                                        content
+                                        parentIds
+                                        comments {
+                                            nodes {
+                                                id
+                                                content
+                                                parentIds
+                                                comments {
+                                                    nodes {
+                                                        id
+                                                        content
+                                                        parentIds
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        document {
+                            meta {
+                                title
+                            }
+                            content
+                        }
+                    }
+                }
+            `;
+            
+            const response = await fetch('https://api.republik.ch/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch discussion from Republik API: ${response.status}`);
+            }
+            
+            return response.json();
+        }
+
+        function extractArticleContext(document) {
+            if (!document) {
+                return '';
+            }
+            
+            const contextParts = [];
+            
+            // Add title from meta
+            if (document.meta && document.meta.title) {
+                contextParts.push(document.meta.title);
+            }
+            
+            // Extract headings with identifier "TITLE"
+            if (document.content && document.content.children) {
+                const headings = extractTitleHeadings(document.content, 3); // max 3 items
+                contextParts.push(...headings);
+            }
+            
+            return contextParts.length > 0 ? contextParts.join('. ') : '';
+        }
+
+        function extractTitleHeadings(content, maxItems = 3) {
+            const headings = [];
+            
+            function processNode(node) {
+                if (headings.length >= maxItems) return;
+                
+                if (node.type === 'heading' && node.identifier === 'TITLE' && node.children) {
+                    const headingText = extractTextFromContent({ children: node.children });
+                    if (headingText.trim()) {
+                        headings.push(headingText.trim());
+                    }
+                }
+                
+                if (node.children) {
+                    node.children.forEach(processNode);
+                }
+            }
+            
+            content.children.forEach(processNode);
+            return headings;
+        }
+
+        function extractTextFromContent(content) {
+            if (!content || !content.children) {
+                return '';
+            }
+            
+            let text = '';
+            
+            function processNode(node) {
+                if (node.type === 'text') {
+                    text += node.value;
+                } else if (node.type === 'break') {
+                    text += '\n';
+                } else if (node.children) {
+                    node.children.forEach(processNode);
+                }
+                
+                // Add space between paragraphs
+                if (node.type === 'paragraph') {
+                    text += '\n\n';
+                }
+            }
+            
+            content.children.forEach(processNode);
+            
+            // Clean up extra whitespace
+            return text.trim().replace(/\n\n+/g, '\n\n');
+        }
+
+        function displayStructuredResult(data, commentData) {
+            const result = document.getElementById('result');
+            const title = document.getElementById('sentimentTitle');
+            const description = document.getElementById('sentimentDescription');
+
+            // Create structured display
+            const etiketteScore = Math.round(data.etiketteCompatibilityScore * 100);
+            const constructiveScore = Math.round(data.constructiveScore * 100);
+            
+            // Determine overall compatibility class
+            let compatibilityClass = 'neutral';
+            if (data.etiketteCompatibilityScore >= 0.7) {
+                compatibilityClass = 'positive';
+            } else if (data.etiketteCompatibilityScore < 0.4) {
+                compatibilityClass = 'negative';
+            }
+
+            // Remove existing classes
+            result.classList.remove('positive', 'negative', 'neutral');
+            result.classList.add(compatibilityClass);
+
+            title.textContent = `Etikette-Kompatibilität: ${etiketteScore}%`;
+            
+            // Highlight problematic text in the original comment
+            let highlightedComment = commentData.targetComment;
+            if (data.etiketteCompatibilityHighlight && data.etiketteCompatibilityHighlight.trim() !== '') {
+                const highlightText = data.etiketteCompatibilityHighlight.trim();
+                // Escape special regex characters
+                const escapedHighlight = highlightText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${escapedHighlight})`, 'gi');
+                highlightedComment = commentData.targetComment.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px;">$1</mark>');
+            }
+            
+            let commentDisplay = `
+                <div style="margin-bottom: 15px; padding: 10px; background-color: #f5f5f5; border-radius: 5px; border-left: 4px solid #2196f3;">
+                    <strong>Analysierter Kommentar:</strong><br>
+                    <div style="margin-top: 8px; font-style: italic;">${highlightedComment}</div>
+                </div>`;
+            
+            // Add parent comment if it exists
+            if (commentData.parentComment) {
+                commentDisplay = `
+                    <div style="margin-bottom: 15px; padding: 10px; background-color: #e8f5e8; border-radius: 5px; border-left: 4px solid #4caf50;">
+                        <strong>Ursprünglicher Kommentar:</strong><br>
+                        <div style="margin-top: 8px; font-style: italic;">${commentData.parentComment}</div>
+                    </div>` + commentDisplay;
+            }
+            
+            description.innerHTML = `
+                ${commentDisplay}
+                <div style="margin-bottom: 10px;"><strong>Artikel-URL:</strong> <a href="${commentData.url}" target="_blank" style="word-break: break-all;">${commentData.url}</a></div>
+                <div><strong>Etikette-Bewertung:</strong> ${data.etiketteCompatibilityExplanation}</div>
+                <div><strong>Problematische Stelle:</strong> "${data.etiketteCompatibilityHighlight}"</div>
+                <div><strong>Tonfall:</strong> ${data.commentTone.join(', ')}</div>
+                <div><strong>Konstruktivität:</strong> ${constructiveScore}% - ${data.constructiveExplanation}</div>
+                <div><strong>Allgemeines Feedback:</strong> ${data.generalFeedback}</div>
+            `;
+
+            result.style.display = 'block';
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        function resetForm() {
+            const form = document.getElementById('sentimentForm');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+            const loading = document.getElementById('loading');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const urlField = document.getElementById('articleUrl');
+
+            // Show form and hide results
+            form.style.display = 'block';
+            result.style.display = 'none';
+            error.style.display = 'none';
+            loading.style.display = 'none';
+            
+            // Re-enable button and clear url field
+            analyzeBtn.disabled = false;
+            urlField.value = '';
+            urlField.focus();
+        }
+
+        // Add event listener for "Try Other Comment" button
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('tryOtherBtn').addEventListener('click', resetForm);
+        });
+
+        function findCommentById(comments, targetId) {
+            for (const comment of comments) {
+                // Check if this is the comment we're looking for
+                if (comment.id === targetId) {
+                    return comment;
+                }
+                
+                // If this comment has nested comments, search them recursively
+                if (comment.comments && comment.comments.nodes) {
+                    const found = findCommentById(comment.comments.nodes, targetId);
+                    if (found) {
+                        return found;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function countAllComments(comments) {
+            let count = 0;
+            for (const comment of comments) {
+                count++;
+                // Count nested comments recursively
+                if (comment.comments && comment.comments.nodes) {
+                    count += countAllComments(comment.comments.nodes);
+                }
+            }
+            return count;
+        }
+    </script>
+</body>
+
+</html>
