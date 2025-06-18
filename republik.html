@@ -40,7 +40,7 @@
     document.getElementById('sentimentForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
-      const apiKey = "AIzaSyDhLmUs9suQRRYTvoUGEB0IpEBFHt6xGqg";
+      const apiKey = API_KEY; // add env
       const articleUrl = document.getElementById('articleUrl').value.trim();
       const loading = document.getElementById('loading');
       const result = document.getElementById('result');
