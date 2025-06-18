@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comment Analyzer</title>
+    <link rel="stylesheet" href="comment.css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <form id="sentimentForm">
+        <div class="form-group">
+          <label for="comment">Enter your comment:</label>
+          <textarea
+            id="comment"
+            placeholder="Type your comment here..."
+            required
+          ></textarea>
+        </div>
+
+        <button type="submit" id="analyzeBtn">Analyze</button>
+      </form>
+
+      <div class="loading" id="loading">Analyzing sentiment...</div>
+      <div class="error" id="error"></div>
+      <div class="result" id="result">
+        <h3 id="sentimentTitle"></h3>
+        <p id="sentimentDescription"></p>
+        <button type="button" id="tryOtherBtn" class="try-other-btn">
+          Try Other Comment
+        </button>
+      </div>
+    </div>
+
+    <script>
+      function getPrompt(comment) {
+        return `Score the following comment for compliance with the rules of the comment section,
+          using a number between 0 and 1. 0 is for comments that do not comply with the rules at all, 
+          1 for comments that are nice, constructive and comply with the rules. 
+          Reply with a json object that contains the score as a number. This is the comment: ${comment}`;
+      }
+
+      document
+        .getElementById("sentimentForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const OLLAMA_API_URL = "http://localhost:11434/api/chat";
+          const OLLAMA_MODEL = "gemma3:4b";
+
+          const comment = document.getElementById("comment").value.trim();
+          const loading = document.getElementById("loading");
+          const result = document.getElementById("result");
+          const error = document.getElementById("error");
+          const analyzeBtn = document.getElementById("analyzeBtn");
+          const form = document.getElementById("sentimentForm");
+
+          // Hide form and show loading
+          form.style.display = "none";
+          result.style.display = "none";
+          error.style.display = "none";
+          loading.style.display = "block";
+          analyzeBtn.disabled = true;
+
+          try {
+            const response = await fetch(OLLAMA_API_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: OLLAMA_MODEL,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a community moderator for the comment section of an online magazine. The rules (also called Etikette) are: no sexism, racism, nor implying any of that. No doxxing, no advertisements. Provide context for links and sources, don't post links without explanation. Define your role to make transparent from which perspective you speak. Check your sources. Don't forget that there are humans on the other side, be kind, don't insult people. Don't write anything that you wouldn't say to someone's face. Together instead of against each other. The comment section should be accessible and welcoming to everyone, the aim is to have a good exchange. Give room to other people and accept that not everyone has the same opinion. You reply in JSON format.",
+                  },
+                  {
+                    role: "user",
+                    content: getPrompt(comment),
+                  },
+                ],
+                stream: false, // immediate answer
+                format: {
+                  type: "object",
+                  properties: {
+                    score: {
+                      type: "number",
+                    },
+                  },
+                  required: ["score"],
+                },
+                options: {
+                  num_ctx: 4096,
+                  seed: 10,
+                  temperature: 0.8,
+                  top_k: 40,
+                  top_p: 0.9,
+                },
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(
+                `API request failed: ${response.status} ${response.statusText}`
+              );
+            }
+
+            const data = await response.json();
+
+            console.log(data.message.content)
+
+            if (data?.message?.content) {
+              const response = JSON.parse(data.message.content)
+              const score = response.score;
+              displayStructuredResult(score);
+            } else {
+              throw new Error("Invalid response format from AI");
+            }
+          } catch (err) {
+            console.error("Error:", err);
+            showError(`Error analyzing sentiment: ${err.message}`);
+            // Show form again on error
+            form.style.display = "block";
+            analyzeBtn.disabled = false;
+          } finally {
+            loading.style.display = "none";
+            // Keep form hidden and button disabled when showing results successfully
+          }
+        });
+
+      function displayStructuredResult(score) {
+        const result = document.getElementById("result");
+        const title = document.getElementById("sentimentTitle");
+        const originalComment = document.getElementById('comment').value.trim();
+
+        // Determine overall compatibility class
+        let compatibilityClass = "neutral";
+        if (score >= 0.7) {
+          compatibilityClass = "positive";
+        } else if (score < 0.4) {
+          compatibilityClass = "negative";
+        }
+
+        // Remove existing classes
+        result.classList.remove("positive", "negative", "neutral");
+        result.classList.add(compatibilityClass);
+
+        title.textContent = `Etikette-Kompatibilität: ${score * 100}%`;
+
+        result.style.display = "block";
+      }
+
+      function showError(message) {
+        const error = document.getElementById("error");
+        error.textContent = message;
+        error.style.display = "block";
+      }
+
+      function resetForm() {
+        const form = document.getElementById("sentimentForm");
+        const result = document.getElementById("result");
+        const error = document.getElementById("error");
+        const loading = document.getElementById("loading");
+        const analyzeBtn = document.getElementById("analyzeBtn");
+        const commentField = document.getElementById("comment");
+
+        // Show form and hide results
+        form.style.display = "block";
+        result.style.display = "none";
+        error.style.display = "none";
+        loading.style.display = "none";
+
+        // Re-enable button and clear comment field
+        analyzeBtn.disabled = false;
+        commentField.value = "";
+        commentField.focus();
+      }
+
+      // Add event listener for "Try Other Comment" button
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("tryOtherBtn")
+          .addEventListener("click", resetForm);
+      });
+    </script>
+  </body>
+</html>
