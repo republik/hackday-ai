@@ -27,6 +27,10 @@
       <div class="result" id="result">
         <h3 id="sentimentTitle"></h3>
         <p id="sentimentDescription"></p>
+        <div class="original-comment">
+          <h4>Original Comment:</h4>
+          <p id="originalCommentText"></p>
+        </div>
         <button type="button" id="tryOtherBtn" class="try-other-btn">
           Try Other Comment
         </button>
@@ -135,6 +139,7 @@
         const result = document.getElementById("result");
         const title = document.getElementById("sentimentTitle");
         const originalComment = document.getElementById('comment').value.trim();
+        const originalCommentText = document.getElementById('originalCommentText');
 
         // Determine overall compatibility class
         let compatibilityClass = "neutral";
@@ -148,7 +153,8 @@
         result.classList.remove("positive", "negative", "neutral");
         result.classList.add(compatibilityClass);
 
-        title.textContent = `Etikette-Kompatibilität: ${score * 100}%`;
+        title.textContent = `Etikette-Kompatibilität: ${(score * 100).toFixed(0)}%`;
+        originalCommentText.textContent = originalComment;
 
         result.style.display = "block";
       }
